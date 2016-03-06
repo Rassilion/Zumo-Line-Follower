@@ -1,17 +1,3 @@
-/*
-   Demo line-following code for the Pololu Zumo Robot
-
-   This code will follow a black line on a white background, using a
-   PID-based algorithm.  It works decently on courses with smooth, 6"
-   radius curves and has been tested with Zumos using 30:1 HP and
-   75:1 HP motors.  Modifications might be required for it to work
-   well on different courses or with different motors.
-
-   http://www.pololu.com/catalog/product/2506
-   http://www.pololu.com
-   http://forum.pololu.com
-*/
-
 #include <QTRSensors.h>
 #include <ZumoReflectanceSensorArray.h>
 #include <ZumoMotors.h>
@@ -25,6 +11,7 @@ ZumoMotors motors;
 Pushbutton button(ZUMO_BUTTON);
 
 int lastError = 0;
+bool flag = true;
 
 // SENSOR_THRESHOLD is a value to compare reflectance sensor
 // readings to to decide if the sensor is over a black line
@@ -53,7 +40,7 @@ const int MAX_SPEED = 250;
 
 int oneLine = 0;
 
-
+int control_speed=250;
 
 void setup()
 {
@@ -107,17 +94,21 @@ void setup()
   while (buzzer.isPlaying());
 }
 
+
 char selectTurn(unsigned char found_left, unsigned char found_straight,
                 unsigned char found_right)
 {
+
   // buzzer.play(">>c32");
   if (oneLine == 1) {
     if (found_right)
     {
+      control_speed=170;
       return 'R';
     }
     else if (found_left)
     {
+      control_speed=170;
       return 'L';
     }
 
@@ -135,11 +126,11 @@ char selectTurn(unsigned char found_left, unsigned char found_straight,
   {
     return 'S';
   } else if (found_right)
-  {
+  {control_speed=170;
     return 'R';
   }
   else if (found_left)
-  {
+  {control_speed=170;
     return 'L';
   } else
   {
@@ -151,7 +142,11 @@ unsigned char prev_found_right = 0;
 unsigned char prev_found_left = 0;
 void loop()
 {
-  followLine();
+
+
+    followLine();
+
+
 
   // buzzer.play(">>b32");//dıt
   unsigned char found_left = 0;
@@ -169,7 +164,7 @@ void loop()
   // This should help us better detect if we
   // have left or right segments.
   motors.setSpeeds(SPEED, SPEED);
-  delay(20);
+  delay(14);
 
   reflectanceSensors.readLine(sensors);
 
@@ -200,10 +195,9 @@ void loop()
   // Check for the ending spot.
   // If all four middle sensors are on dark black, we have
   // solved the maze.
-  if ((ABOVE_LINE(sensors[0]) && ABOVE_LINE(sensors[1]) && ABOVE_LINE(sensors[2]) && ABOVE_LINE(sensors[3]) && ABOVE_LINE(sensors[4]))
-  || (ABOVE_LINE(sensors[1]) && ABOVE_LINE(sensors[2]) && ABOVE_LINE(sensors[3]) && ABOVE_LINE(sensors[4]) && ABOVE_LINE(sensors[5])))
+  if (ABOVE_LINE(sensors[0]) && ABOVE_LINE(sensors[1]) && ABOVE_LINE(sensors[2]) && ABOVE_LINE(sensors[3]) && ABOVE_LINE(sensors[4])&&ABOVE_LINE(sensors[5]))
   {
-      //buzzer.play(">>a32");
+      buzzer.play(">>a32");
     oneLine++;
     if (oneLine == 2)
     {
@@ -255,14 +249,13 @@ Serial.println("Finish");
   }
   if (ABOVE_LINE(sensors[2]) || ABOVE_LINE(sensors[3]))
     found_straight = 1;
-    
+
  /* if (ABOVE_LINE(sensors[0]) || ABOVE_LINE(sensors[5]))
   {
     if (oneLine == 1)
     {
       found_left = prev_found_left;
       found_right = prev_found_right;
-
     }
   }*/
 
@@ -324,16 +317,36 @@ void followLine()
       m2Speed = MAX_SPEED;
 
     //
-    motors.setSpeeds(m1Speed, m2Speed);
+    if(control_speed<250){
+        control_speed+=20;
+       motors.setSpeeds(control_speed,control_speed);
+    }else{
+        motors.setSpeeds(m1Speed, m2Speed);
+    }
+
     if (!ABOVE_LINE(sensors[0]) && !ABOVE_LINE(sensors[1]) && !ABOVE_LINE(sensors[2]) && !ABOVE_LINE(sensors[3]) && !ABOVE_LINE(sensors[4]) && !ABOVE_LINE(sensors[5]))
     {
       // There is no line visible ahead, and we didn't see any
       // intersection.  Must be a dead end.
       return;
     }
-    else if (ABOVE_LINE(sensors[0]) || ABOVE_LINE(sensors[5]))
+    else if ((ABOVE_LINE(sensors[0]) || ABOVE_LINE(sensors[5])))
     {
       // Found an intersection.
+             if (ABOVE_LINE(sensors[1]) && ABOVE_LINE(sensors[0])&& ABOVE_LINE(sensors[2])&&(flag == true))
+            {
+                 motors.setSpeeds(-250,250);
+                 delay(300);
+                 flag=false;
+
+            }
+            else if (ABOVE_LINE(sensors[5]) && ABOVE_LINE(sensors[4])&& ABOVE_LINE(sensors[3])&&(flag == true))
+            {
+                 motors.setSpeeds(250,-250);
+                 delay(300);
+                 flag=false;
+            }
+
       Serial.println("intersection");
       return;
     }
@@ -380,7 +393,7 @@ void turn(char dir)
         last_status = ABOVE_LINE(sensors[1]);
         //   buzzer.play(">>a32");
       }
- 
+
 
       break;
 

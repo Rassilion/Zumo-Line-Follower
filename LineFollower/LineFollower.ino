@@ -35,7 +35,7 @@ int control = 0;
 // Motor speed when driving straight. SPEED should always
 // have a positive value, otherwise the Zumo will travel in the
 // wrong direction.
-#define SPEED 300
+#define SPEED 350
 
 
 // FollowLine daki max hız
@@ -176,7 +176,7 @@ void loop()
   // have left or right segments.
 
   motors.setSpeeds(SPEED, SPEED);
-  delay(30);
+  delay(15);
 
   reflectanceSensors.readLine(sensors, 1, 1);
 
@@ -337,7 +337,7 @@ void followLine()
     last_proportional = proportional;
 
     // proportional*kp+integral*ki+derivative*kd
-    int speedDifference = proportional / 2  + integral / 10000 + derivative * (4 / 5);
+    int speedDifference = proportional / 2  + integral / 10000 + derivative * (3 / 2);
 
 
     // Get individual motor speeds.  The sign of speedDifference
@@ -367,7 +367,7 @@ void followLine()
       // There is no line visible ahead, and we didn't see any
       // intersection.  Must be a dead end.
       oneLine=0;
-
+ 
       return;
     }
     else if ((ABOVE_LINE(sensors[0]) && ABOVE_LINE(sensors[1]) || (ABOVE_LINE(sensors[4]) && ABOVE_LINE(sensors[5])) ))

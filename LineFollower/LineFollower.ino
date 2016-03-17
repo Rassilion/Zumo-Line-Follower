@@ -10,14 +10,12 @@ ZumoReflectanceSensorArray reflectanceSensors;
 ZumoMotors motors;
 Pushbutton button(ZUMO_BUTTON);
 
-int lastError = 0;
-bool flag = true;
-bool enFlag = false;
+
 
 int last_proportional;
 int integral;
-int control = 0;
-
+int control = 1;
+int near = 0;
 // SENSOR_THRESHOLD is a value to compare reflectance sensor
 // readings to to decide if the sensor is over a black line
 #define SENSOR_THRESHOLD 200
@@ -30,16 +28,16 @@ int control = 0;
 // Motor speed when turning. TURN_SPEED should always
 // have a positive value, otherwise the Zumo will turn
 // in the wrong direction.
-#define TURN_SPEED 400
+#define TURN_SPEED 275
 
 // Motor speed when driving straight. SPEED should always
 // have a positive value, otherwise the Zumo will travel in the
 // wrong direction.
-#define SPEED 350
+#define SPEED 325
 
 
 // FollowLine daki max hız
-const int MAX_SPEED = 400;
+const int MAX_SPEED = 300;
 
 int oneLine = 0;
 
@@ -114,49 +112,45 @@ char selectTurn(unsigned char found_left, unsigned char found_straight,
   if (oneLine == 1) {
     if (found_right)
     {
-
       return 'R';
     }
     else if (found_left)
     {
-
       return 'L';
-    }
-
-    else if (found_straight)
-    {
-
-      return 'S';
     }
     else
     {
       return 'S';
     }
-  }
-  else if (found_straight)
-  {
-    return 'S';
-  } else if (found_right)
-  {
-    return 'R';
-  }
-  else if (found_left)
-  {
-    return 'L';
-  } else
-  {
-    return 'S';
+  } else {
+    if (found_straight)
+    {
+      return 'S';
+    } else if (found_right)
+    {
+      return 'R';
+    }
+    else if (found_left)
+    {
+      return 'L';
+    } else
+    {
+      return 'S';
+    }
   }
 }
-int c = 0;
-unsigned char prev_found_right = 0;
-unsigned char prev_found_left = 0;
-int x=0;
+
+unsigned char last = 'S';
+int proksimiti = 0;
+unsigned long time1;
+unsigned long time2;
 void loop()
 {
 
-
+  //start following line
   followLine();
+
+  // initilize turn signals 
   unsigned char found_left = 0;
   unsigned char found_straight = 0;
   unsigned char found_right = 0;
@@ -174,142 +168,93 @@ void loop()
   // approximately in the middle of intersection.
   // This should help us better detect if we
   // have left or right segments.
-
   motors.setSpeeds(SPEED, SPEED);
-  delay(15);
+  delay(28);
 
+  // read sensors again
   reflectanceSensors.readLine(sensors, 1, 1);
 
 
-  if (c == 0) {
-    if (oneLine == 1)
-    {
-      if ( ABOVE_LINE(sensors[5]))
-      {
-        prev_found_right = 1;
-        c++;
-        x=1;
-
-      }
-
-     else if (ABOVE_LINE(sensors[0])) {
-        prev_found_left = 1;
-        c++;
-         x=1;
-
-      }
-
-    }
-    else {
-      
-      prev_found_right = 0;
-      prev_found_left = 0;
-
-    }
-
-  }
-
-  // Check for the ending spot.
-  // If all four middle sensors are on dark black, we have
-  // solved the maze.
+  //check if zumo on oneLine, else check turn signals
   if (ABOVE_LINE(sensors[0]) && ABOVE_LINE(sensors[1]) && ABOVE_LINE(sensors[2]) && ABOVE_LINE(sensors[3]) && ABOVE_LINE(sensors[4]) && ABOVE_LINE(sensors[5]))
   {
-    Serial.println("algiladi");
+    
     oneLine++;
+
+    // save current oneLine time
+    time1 = millis();
+
+
+    // reset oneLine if its second turn on loop
     if (oneLine == 2)
     {
-      c=0;
-      Serial.println("oneline=0");
       oneLine = 0;
-      found_straight = 1;
-      control = 1;
 
-      //buzzer.play(">>c32");
+      //dıt
+
     }
-  }
 
-
-
-
-  /*
-  Serial.println("Start");
-  Serial.println(prev_found_left);
-  Serial.println(prev_found_right);
-  Serial.println(oneLine);
-
-  Serial.println("Finish");
-  */
-
-  // After driving a little further, we
-  // should have passed the intersection
-  // and can check to see if we've hit the
-  // finish line or if there is a straight segment
-  // ahead.
-
-
-
-
-  // Check for left and right exits.
-  if (ABOVE_LINE(sensors[0]))
-  {                                    
-
-    if (oneLine == 1) {
-      if (prev_found_left == 1&&x!=1)
-      {
-        found_left = prev_found_left;
-      }
-      else{
-        
-         found_straight = 1;
-        }
-    }
-    else {
-      found_left = 1;
-    }
-  }
-  
-  if ( ABOVE_LINE(sensors[5])) {
-
-    if (oneLine == 1)
+    //check last and current time to see if its a twoLine
+    if (abs(time1 - time2) < 180)
     {
-      if (prev_found_right == 1&&x!=1)
-      {
-         buzzer.play(">>c32");
-        found_right = prev_found_right;
-      }
-      else{
-         found_straight = 1;
-        }
+
+      //buzzer.play(">g32>>c32");
+
+      found_left = 0;
+      found_straight = 1;
+      found_right = 0;
+      oneLine = 0;
+
+      // drive straight to pass shortcut
+      motors.setSpeeds(300, 300); //CHECK: this needs to calibrated
+      delay(800); //CHECK: this needs to calibrated
+
+
     }
-    else {
-     
+    time2 = time1; //save last time
+  }
+  else {
+    //straight if
+    if ((ABOVE_LINE(sensors[2]) || ABOVE_LINE(sensors[3])) && (!ABOVE_LINE(sensors[0]) && !ABOVE_LINE(sensors[5])))
+    {
+      found_straight = 1;
+
+    }
+    //left if
+    if ((ABOVE_LINE(sensors[0]) ) )
+    {
+      found_left = 1;
+      //  buzzer.play(">>b32");
+    }
+    //right if
+    if ((ABOVE_LINE(sensors[5]) ) )
+    {
       found_right = 1;
     }
-  }
-  if ((ABOVE_LINE(sensors[2]) || ABOVE_LINE(sensors[3]) || ABOVE_LINE(sensors[1]) || ABOVE_LINE(sensors[4])) && (!ABOVE_LINE(sensors[0]) && !ABOVE_LINE(sensors[5])) || control)
-  {
-    //buzzer.play(">>c32");
-    found_straight = 1;
-  }
-  /* if (ABOVE_LINE(sensors[0]) || ABOVE_LINE(sensors[5]))
-   {
-     if (oneLine == 1)
-     {
-       found_left = prev_found_left;
-       found_right = prev_found_right;
-     }
-   }*/
 
-  /*Serial.println(found_right);
-   Serial.println(found_left);
-    Serial.println(found_straight);*/
+  }
 
-  // Intersection identification is complete.
+
+  //select a turn based on oneLine
   unsigned char dir = selectTurn(found_left, found_straight, found_right);
 
-  // Make the turn indicated by the path.
+  //if on loop and if turn not straight save turn
+  if (dir != 'S' && oneLine)
+    last = dir;
+  //if turn and last turn is same zumo is on enterence of loop, pgo straight and pass enterance
+  else if (dir == last && !ABOVE_LINE(sensors[2]) && !ABOVE_LINE(sensors[3])) {
+    dir = 'S';
+    control = 0;
+  }
+  // if proksimity sensor reads value turn given direction
+  if (proksimiti == 1)
+  {
+    dir = 'L';//CHECK: object turn is left?
+    proksimiti = 0;
+  }
+
+  //turns given direction
   turn(dir);
-  x=0;
 
 }
 
@@ -361,23 +306,25 @@ void followLine()
 
     motors.setSpeeds(m1Speed, m2Speed);
 
+    //proksimity sensor value
+    //CHECK: needs to calibrated to object
+    if (analogRead(A1) < 200 && analogRead(A1) > 190 )
+    {
+      proksimiti = 1;
+      buzzer.play(">>b32");
 
+    }
+    //zumo lost the line go straight 
     if (!ABOVE_LINE(sensors[0]) && !ABOVE_LINE(sensors[1]) && !ABOVE_LINE(sensors[2]) && !ABOVE_LINE(sensors[3]) && !ABOVE_LINE(sensors[4]) && !ABOVE_LINE(sensors[5]))
     {
-      // There is no line visible ahead, and we didn't see any
-      // intersection.  Must be a dead end.
-      oneLine=0;
- 
-      return;
+      oneLine = 0;//TODO: problem when zumo lost the line while in loop
+
+      motors.setSpeeds(307, 300);//CHECK:  needs to calibrated
+      //return;
     }
+    //break while when there is a turn or oneLine;
     else if ((ABOVE_LINE(sensors[0]) && ABOVE_LINE(sensors[1]) || (ABOVE_LINE(sensors[4]) && ABOVE_LINE(sensors[5])) ))
     {
-
-      // Found an intersection.
-
-
-
-      //Serial.println("intersection");
       return;
     }
 
@@ -410,7 +357,7 @@ void turn(char dir)
     case 'B':
       // Turn left.
       motors.setSpeeds(-TURN_SPEED , TURN_SPEED);
-      delay(20);
+      delay(30);
       // This while loop monitors line position
       // until the turn is complete.
       while (count < 1)
@@ -424,7 +371,7 @@ void turn(char dir)
         last_status = ABOVE_LINE(sensors[1]);
         //   buzzer.play(">>a32");
       }
-
+      proksimiti = 0;
 
       break;
 
@@ -433,14 +380,14 @@ void turn(char dir)
       motors.setSpeeds(TURN_SPEED, -TURN_SPEED );
       // This while loop monitors line position
       // until the turn is complete.
-      delay(20);
+      delay(30);
       while (count < 1)
       {
         reflectanceSensors.readLine(sensors, 1, 1);
         count += ABOVE_LINE(sensors[4]) ^ last_status;
         last_status = ABOVE_LINE(sensors[4]);
       }
-
+      proksimiti = 0;
       break;
 
     case 'S':
